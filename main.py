@@ -1,7 +1,6 @@
 import edge_tts
 from fastapi import FastAPI, Response
 import io
-import asyncio
 
 app = FastAPI()
 
@@ -9,24 +8,23 @@ app = FastAPI()
 async def text_to_speech(text: str, voice: str = "bn-BD-BashkarNeural"):
     try:
         # Create speech from text
+        # Using a direct communicate and saving to buffer
         communicate = edge_tts.Communicate(text, voice)
-        audio_data = io.BytesIO()
         
-        # Proper async streaming to buffer
+        audio_data = io.BytesIO()
         async for chunk in communicate.stream():
             if chunk["type"] == "audio":
                 audio_data.write(chunk["data"])
         
-        audio_data.seek(0)
-        content = audio_data.read()
+        audio_content = audio_data.getvalue()
         
-        if not content:
-            return Response(content="Audio generation failed", status_code=500)
+        if len(audio_content) == 0:
+            return Response(content="No audio generated", status_code=500)
             
-        return Response(content=content, media_type="audio/mpeg")
+        return Response(content=audio_content, media_type="audio/mpeg")
     except Exception as e:
         print(f"Error: {str(e)}")
-        return Response(content=str(e), status_code=500)
+        return Response(content=f"Internal Error: {str(e)}", status_code=500)
 
 @app.get("/")
 async def root():
